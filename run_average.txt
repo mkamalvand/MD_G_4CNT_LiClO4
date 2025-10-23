@@ -1,0 +1,190 @@
+echo 		both
+units           real
+
+neighbor 2.5 bin
+
+dimension	3
+boundary	p p f
+atom_style	full
+bond_style	harmonic
+angle_style	harmonic 
+
+variable            R equal 5000000   #Run
+variable            A equal 1000      # averaging
+variable            B equal 1000      # averaging
+variable            C equal 1000000      # averaging
+variable            T equal 298
+variable            V_down equal -1
+variable            V_up equal 1
+
+#read_restart     V_0_CPM.15000000
+#read_restart     V_Pos_CPM.15000000
+read_restart     V_Neg_CPM.15000000
+
+pair_style      hybrid  lj/cut 0.0 lj/cut/coul/long 9.0 9.0
+pair_coeff	1	1		lj/cut/coul/long			0.1553		3.166	#	O_W	O_W
+pair_coeff	1	2		lj/cut/coul/long			0		0	#	O_W	H
+pair_coeff	1	3		lj/cut/coul/long			0.135199149	3.333	#	O_W	Cl	
+pair_coeff	1	4		lj/cut/coul/long			0.185251704	3.033	#	O_W	O_ClO4	
+pair_coeff	1	5		lj/cut/coul/long			0.013594374	3.018	#	O_W	Li	
+pair_coeff	1	6*11		lj/cut/coul/long			0.115461087	3.283	#	O_W	C	
+pair_coeff	2	2		lj/cut/coul/long			0		0	#	H	H
+pair_coeff	2	3		lj/cut/coul/long			0		1.75	#	H	Cl
+pair_coeff	2	4		lj/cut/coul/long			0		1.45	#	H	O_ClO4
+pair_coeff	2	5		lj/cut/coul/long			0		1.435	#	H	Li
+pair_coeff	2	6*11		lj/cut/coul/long			0		1.7	#	H	C_GL
+pair_coeff	3	3		lj/cut/coul/long			0.1177		3.5	#	Cl	Cl
+pair_coeff	3	4		lj/cut/coul/long			0.161274133	3.2	#	Cl	O_ClO4	
+pair_coeff	3	5		lj/cut/coul/long			0.011834822	3.185	#	Cl	Li	
+pair_coeff	3	6*11		lj/cut/coul/long			0.100516682	3.45	#	Cl	C_GL	
+pair_coeff	4	4		lj/cut/coul/long			0.22098		2.9	#	O_ClO4	O_ClO4
+pair_coeff	4	5		lj/cut/coul/long			0.016216233	2.885	#	O_ClO5	Li	
+pair_coeff	4	6*11		lj/cut/coul/long			0.137729318	3.15	#	O_ClO6	C_GL	
+pair_coeff	5	5		lj/cut/coul/long			0.00119		2.87	#	Li	Li
+pair_coeff	5	6*11		lj/cut/coul/long			0.010107026	3.135	#	Li	C_GL	
+pair_coeff	6	6*11		lj/cut					0.000000	0	#	C_GL	C_GL	
+pair_coeff	7	7*11		lj/cut					0.000000	0	#	C_GU	C_GU	
+pair_coeff	8	8*11		lj/cut					0.000000	0	#	C_C7	C_C7	
+pair_coeff	9	9*11		lj/cut					0.000000	0	#	C_C11	C_C11	
+pair_coeff	10	10*11		lj/cut					0.000000	0	#	C_C15	C_C15	
+pair_coeff	11	11		lj/cut					0.000000	0	#	C_C_20	C_C20	
+
+
+ 
+kspace_style pppm/electrode 1.0e-4
+run 0
+change_box all z final 0 50.01
+reset_timestep 0
+#--------------------------------------------------------------
+
+group 		water type 1 2
+group 		H type 2
+group 		O type 1
+group 		ClO4 type 3 4 
+group	  	Li type 5
+group 		soln type 1 2 3 4 5
+group  		CNT20 type 6
+group	  	CNT15 type 7
+group	  	CNT11 type 8
+group		CNT7  type 9
+group	  	GL    type 10
+group	  	GU    type 11
+group           El_L type 6 7 8 9 10
+group	  	gCNT type 6 7 8 9 10 11
+
+dump                1 all atom 100000 dump.atom
+
+thermo_style   	    custom step temp press density 
+
+fix 5 		    gCNT setforce 0.0 0.0 0.0
+
+thermo	            1000
+timestep            1
+
+fix 		    10 water shake 0.0001 20 0 b 1 a 1
+fix 		    20 ClO4 rigid molecule
+fix 		    30 soln nvt temp $T $T 100 
+
+restart		    1000000 V_PM_average
+
+
+fix 		    130 El_L electrode/conp ${V_down} 1.805 couple GU ${V_up} symm on
+
+compute N_2020 soln chunk/atom bin/cylinder z 0 18.6 20 20 0 26.5 2 units box
+compute N_Li_20 Li property/chunk N_2020 count
+compute N_ClO4_20 ClO4 property/chunk N_2020 count
+compute N_W_20 water property/chunk N_2020 count
+
+compute N_1515 soln chunk/atom bin/cylinder z 0 18.6 42 42 0 20.1 2 units box
+compute N_Li_15 Li property/chunk N_1515 count
+compute N_ClO4_15 ClO4 property/chunk N_1515 count
+compute N_W_15 water property/chunk N_1515 count
+
+compute N_1111 soln chunk/atom bin/cylinder z 0 18.6 15 45 0 14.7 2 units box
+compute N_Li_11 Li property/chunk N_1111 count
+compute N_ClO4_11 ClO4 property/chunk N_1111 count
+compute N_W_11 water property/chunk N_1111 count
+
+compute N_77 soln chunk/atom bin/cylinder z 0 18.6 46 12 0 9.4 2 units box
+compute N_Li_7 Li property/chunk N_77 count
+compute N_ClO4_7 ClO4 property/chunk N_77 count
+compute N_W_7 water property/chunk N_77 count
+
+compute q_all gCNT property/atom q
+
+compute sum_GL GL reduce sum c_q_all
+compute sum_GU GU reduce sum c_q_all
+compute sum_CNT20 CNT20 reduce sum c_q_all
+compute sum_CNT15 CNT15 reduce sum c_q_all
+compute sum_CNT11 CNT11 reduce sum c_q_all
+compute sum_CNT7 CNT7 reduce sum c_q_all
+compute sum_gCNT gCNT reduce sum c_q_all
+compute sum_El_L El_L reduce sum c_q_all
+
+variable aq_all atom abs(c_q_all)
+compute sum_GL_abs GL reduce sum v_aq_all
+compute sum_GU_abs GU reduce sum v_aq_all
+compute sum_CNT20_abs CNT20 reduce sum v_aq_all
+compute sum_CNT15_abs CNT15 reduce sum v_aq_all
+compute sum_CNT11_abs CNT11 reduce sum v_aq_all
+compute sum_CNT7_abs CNT7 reduce sum v_aq_all
+compute sum_gCNT_abs gCNT reduce sum v_aq_all
+compute sum_El_L_abs El_L reduce sum v_aq_all
+
+fix ave_q_all gCNT  ave/atom 1000 1000 1000000 c_q_all
+
+fix monitor_all all ave/time 1000 100 100000 c_sum_CNT7 c_sum_CNT11 c_sum_CNT15 c_sum_CNT20 c_sum_GL c_sum_El_L c_sum_GU c_sum_gCNT   c_sum_CNT7_abs c_sum_CNT11_abs c_sum_CNT15_abs c_sum_CNT20_abs c_sum_GL_abs c_sum_El_L_abs c_sum_GU_abs c_sum_gCNT_abs  c_N_Li_20[1] c_N_ClO4_20[1] c_N_W_20[1] c_N_Li_15[1] c_N_ClO4_15[1] c_N_W_15[1] c_N_Li_11[1] c_N_ClO4_11[1] c_N_W_11[1] c_N_Li_7[1] c_N_ClO4_7[1] c_N_W_7[1] file monitored_data.txt mode scalar
+
+dump chargeDump gCNT custom 1000000 averaged_charges.xyz id type x y z f_ave_q_all
+
+compute		rho_2020	soln	chunk/atom	bin/cylinder	z	0.05	0.1	20	20	0.05	20	200	#units	box					
+compute 	rho_cyl_H_20 		H 	property/chunk 	rho_2020	count
+compute 	rho_cyl_O_20 		O 	property/chunk 	rho_2020	count
+compute 	rho_cyl_ClO4_20 	ClO4 	property/chunk 	rho_2020	count
+compute 	rho_cyl_Li_20 		Li 	property/chunk 	rho_2020	count
+
+compute		rho_1515	soln	chunk/atom	bin/cylinder	z	0.05	0.1	42	42	0.05	20	200	#units	box					
+compute 	rho_cyl_H_15 		H 	property/chunk 	rho_1515	count
+compute 	rho_cyl_O_15 		O 	property/chunk 	rho_1515	count
+compute 	rho_cyl_ClO4_15 	ClO4 	property/chunk 	rho_1515	count
+compute 	rho_cyl_Li_15 		Li 	property/chunk 	rho_1515	count
+
+compute		rho_1111	soln	chunk/atom	bin/cylinder	z	0.05	0.1	15	45	0.05	20	200	#units	box					
+compute 	rho_cyl_H_11 		H 	property/chunk 	rho_1111	count
+compute 	rho_cyl_O_11 		O 	property/chunk 	rho_1111	count
+compute 	rho_cyl_ClO4_11 	ClO4 	property/chunk 	rho_1111	count
+compute 	rho_cyl_Li_11 		Li 	property/chunk 	rho_1111	count
+
+compute		rho_77		soln	chunk/atom	bin/cylinder	z	0.05	0.1	46	12	0.05	20	200	#units	box					
+compute 	rho_cyl_H_7 		H 	property/chunk 	rho_77	count
+compute 	rho_cyl_O_7 		O 	property/chunk 	rho_77	count
+compute 	rho_cyl_ClO4_7 		ClO4 	property/chunk 	rho_77	count
+compute 	rho_cyl_Li_7 		Li 	property/chunk 	rho_77	count
+
+compute 	rhoz 		soln	chunk/atom bin/1d  z lower 0.05 
+compute 	rhoz_cyl_H 		H 	property/chunk 	rhoz    count
+compute 	rhoz_cyl_O 		O 	property/chunk 	rhoz    count
+compute 	rhoz_cyl_ClO4 		ClO4 	property/chunk 	rhoz    count
+compute 	rhoz_cyl_Li 		Li 	property/chunk 	rhoz    count
+
+fix 		50 		soln 	ave/time $A $B $C  c_rho_cyl_H_20  c_rho_cyl_Li_20 c_rho_cyl_O_20 c_rho_cyl_ClO4_20  file rho_cyl_20.txt  mode vector #format %.2f 
+fix 		60 		soln 	ave/time $A $B $C  c_rho_cyl_H_15  c_rho_cyl_Li_15 c_rho_cyl_O_15 c_rho_cyl_ClO4_15  file rho_cyl_15.txt  mode vector #format %.2f 
+fix 		70 		soln 	ave/time $A $B $C  c_rho_cyl_H_11  c_rho_cyl_Li_11 c_rho_cyl_O_11 c_rho_cyl_ClO4_11  file rho_cyl_11.txt  mode vector #format %.2f 
+fix 		80 		soln 	ave/time $A $B $C  c_rho_cyl_H_7   c_rho_cyl_Li_7  c_rho_cyl_O_7  c_rho_cyl_ClO4_7   file rho_cyl_7.txt  mode vector #format %.2f 
+fix 		90 		soln 	ave/time $A $B $C  c_rhoz_cyl_H    c_rhoz_cyl_Li   c_rhoz_cyl_O   c_rhoz_cyl_ClO4    file rhoz_cyl.txt  mode vector #format %.2f 
+
+
+compute	rho_xyz		soln 	chunk/atom	bin/3d	x	lower	1	y	lower	1	z	lower	1	
+compute rho_xyz_H 	H 	property/chunk 	rho_xyz	count
+compute rho_xyz_Li 	Li 	property/chunk 	rho_xyz	count
+compute rho_xyz_O 	O 	property/chunk 	rho_xyz	count
+compute rho_xyz_ClO4 	ClO4 	property/chunk 	rho_xyz	count
+
+
+fix 		100 soln ave/time $A $B $C  c_rho_xyz_H c_rho_xyz_Li c_rho_xyz_O c_rho_xyz_ClO4 file rho_xyz.txt  mode vector #format "%.3f"
+
+thermo_style custom step c_sum_El_L c_N_Li_20[1] c_N_ClO4_20[1]
+thermo 1000
+
+run 		    $R
+
